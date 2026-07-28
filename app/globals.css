@@ -1,0 +1,79 @@
+@import "tailwindcss";
+
+/* Design tokens → Tailwind utilities (bg-canvas, text-ink, border-line, …) */
+@theme {
+  --color-canvas: #EAEDF1;
+  --color-panel: #FFFFFF;
+  --color-ink: #14171F;
+  --color-muted: #6F7682;
+  --color-line: #DCE0E6;
+  --color-line-strong: #C5CBD3;
+  --color-today: #E5484D;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, "Roboto Mono", Menlo, Consolas, monospace;
+}
+
+/* Layout dimensions — Timeline.tsx reads --dayW at runtime for column sizing. */
+:root {
+  --dayW: 28px;
+  --labelW: 300px;
+  --rowH: 38px;
+  --projH: 44px;
+  --axisH: 68px;
+}
+
+@media (max-width: 560px) {
+  :root {
+    --labelW: 180px;
+    --dayW: 22px;
+  }
+}
+
+body {
+  margin: 0;
+  padding: 22px;
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Repeated multi-variant components stay as classes for readable JSX. */
+@layer components {
+  .btn {
+    @apply rounded-lg border border-line-strong bg-panel text-ink px-3 py-2 cursor-pointer transition-colors duration-100;
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 560;
+  }
+  .btn:hover { border-color: #9aa2ad; }
+  .btn-primary { @apply bg-ink text-white border-ink; }
+  .btn-primary:hover { background: #2a2f3a; }
+  .btn-ghost { @apply bg-transparent border-transparent text-muted; padding: 6px 8px; }
+  .btn-ghost:hover { @apply text-ink; background: #0000000a; }
+  .btn-danger { color: #c0303a; border-color: #e7b4b8; }
+  .btn-danger:hover { background: #fbeced; border-color: #d98a90; }
+
+  .field-input {
+    @apply w-full border border-line-strong rounded-lg text-ink bg-white;
+    padding: 9px 10px;
+    font-family: var(--font-sans);
+    font-size: 13.5px;
+  }
+  .field-input:focus { outline: 2px solid #b9c0ff; outline-offset: 0; border-color: #8b93f0; }
+
+  .modal-shell {
+    @apply w-[380px] max-w-full overflow-hidden rounded-[14px] border border-line bg-panel;
+    box-shadow: 0 24px 60px -18px #0a0f1a66;
+  }
+  .modal-title {
+    @apply m-0 border-b border-line px-[18px] py-4 text-[15px];
+    font-weight: 640;
+  }
+  .modal-body {
+    @apply flex flex-col gap-[13px] px-[18px] py-4;
+  }
+  .modal-label {
+    @apply mb-[5px] block text-[11px] font-semibold uppercase tracking-[.04em] text-muted;
+  }
+}
