@@ -13,25 +13,45 @@
   --font-mono: ui-monospace, "SF Mono", SFMono-Regular, "Roboto Mono", Menlo, Consolas, monospace;
 }
 
-/* Layout dimensions — Timeline.tsx reads --dayW at runtime for column sizing. */
+/* Layout dimensions — Timeline.tsx reads --labelW / --dayW at runtime. */
 :root {
   --dayW: 28px;
   --labelW: 300px;
   --rowH: 38px;
   --projH: 44px;
   --axisH: 68px;
+  --page-pad: 22px;
+  --chart-max-h: 74vh;
 }
 
-@media (max-width: 560px) {
+@media (max-width: 760px) {
   :root {
-    --labelW: 180px;
-    --dayW: 22px;
+    --labelW: 108px;
+    --dayW: 36px;
+    --rowH: 42px;
+    --projH: 46px;
+    --axisH: 58px;
+    --page-pad: 10px;
+    --chart-max-h: 62dvh;
+  }
+}
+
+@media (max-width: 420px) {
+  :root {
+    --labelW: 92px;
+    --dayW: 36px;
+    --page-pad: 8px;
+    --axisH: 54px;
+    --chart-max-h: 58dvh;
   }
 }
 
 body {
   margin: 0;
-  padding: 22px;
+  padding: var(--page-pad);
+  padding-left: max(var(--page-pad), env(safe-area-inset-left));
+  padding-right: max(var(--page-pad), env(safe-area-inset-right));
+  padding-bottom: max(var(--page-pad), env(safe-area-inset-bottom));
   background: var(--color-canvas);
   color: var(--color-ink);
   font-family: var(--font-sans);
@@ -45,6 +65,7 @@ body {
     font-family: var(--font-sans);
     font-size: 13px;
     font-weight: 560;
+    min-height: 36px;
   }
   .btn:hover { border-color: #9aa2ad; }
   .btn-primary { @apply bg-ink text-white border-ink; }
@@ -58,7 +79,10 @@ body {
     @apply w-full border border-line-strong rounded-lg text-ink bg-white;
     padding: 9px 10px;
     font-family: var(--font-sans);
-    font-size: 13.5px;
+    font-size: 16px; /* avoid iOS zoom-on-focus */
+  }
+  @media (min-width: 761px) {
+    .field-input { font-size: 13.5px; }
   }
   .field-input:focus { outline: 2px solid #b9c0ff; outline-offset: 0; border-color: #8b93f0; }
 
@@ -75,5 +99,47 @@ body {
   }
   .modal-label {
     @apply mb-[5px] block text-[11px] font-semibold uppercase tracking-[.04em] text-muted;
+  }
+
+  .chart-scroll {
+    max-height: var(--chart-max-h);
+    overflow-x: auto;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    /* Let the browser own panning; drag is disabled on touch/narrow below. */
+    touch-action: pan-x pan-y;
+  }
+
+  .chart-scroll .barx,
+  .chart-scroll .deadline-hit {
+    touch-action: pan-x pan-y;
+  }
+
+  @media (pointer: fine) {
+    .chart-scroll .barx,
+    .chart-scroll .deadline-hit {
+      touch-action: none;
+    }
+  }
+
+  @media (max-width: 760px) {
+    .btn {
+      min-height: 40px;
+      padding-left: 12px;
+      padding-right: 12px;
+    }
+    .modal-shell {
+      width: 100%;
+      max-width: 100%;
+      border-radius: 16px 16px 0 0;
+      max-height: min(92dvh, 100%);
+      overflow: auto;
+    }
+    .modal-title,
+    .modal-body {
+      padding-left: 16px;
+      padding-right: 16px;
+    }
   }
 }

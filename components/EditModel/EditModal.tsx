@@ -31,7 +31,7 @@ export const EditModal = ({
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-5 bg-[#0c0f1655]"
+      className="fixed inset-0 z-[100] flex items-end justify-center bg-[#0c0f1655] p-0 sm:items-center sm:p-5"
       onClick={(e) => {
         if (e.target === e.currentTarget) onCancel();
       }}

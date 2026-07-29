@@ -14,7 +14,7 @@ export const ModalFooter = ({
   onSave,
 }: ModalFooterProps) => {
   return (
-    <div className="flex items-center justify-between gap-2 border-t border-line bg-[#fafbfc] px-[18px] py-3.5">
+    <div className="flex items-center justify-between gap-2 border-t border-line bg-[#fafbfc] px-4 py-3.5 sm:px-[18px] pb-[max(14px,env(safe-area-inset-bottom))] sm:pb-3.5">
       <button
         className="btn btn-danger"
         onClick={onDelete}

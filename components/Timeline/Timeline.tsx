@@ -1,16 +1,18 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { TimelineData, ModalContext, ProjectValues, TaskValues } from "@/lib/types";
 import { DEFAULT_DATA } from "@/lib/defaultData";
 import { loadData, saveData } from "@/lib/storage";
 import { DAY_LETTERS, MONTHS, fmt, fromDays, iso, toDays, todayIso, uid } from "@/lib/date";
 import EditModal from "../EditModel/EditModal";
 import { AIAssistant } from "../AIAssistant/AIAssistant";
+import { MobileTimelineCards } from "./MobileTimelineCards";
 
 const VISIBLE_WEEKS = 4;
 const VISIBLE_DAYS = VISIBLE_WEEKS * 7;
-const MIN_DAY_W = 22;
+const MIN_DAY_W_DESKTOP = 22;
+const NARROW_BREAKPOINT = 760;
 
 const getRange = (data: TimelineData, today: string) => {
   const todayDays = toDays(today);
@@ -66,6 +68,8 @@ export const Timeline = () => {
   const [today, setToday] = useState<string>(todayIso());
   const [dayW, setDayW] = useState(28);
   const [labelW, setLabelW] = useState(300);
+  const [narrow, setNarrow] = useState(false);
+  const [canDrag, setCanDrag] = useState(true);
   const [mounted, setMounted] = useState(false);
   const [savedShown, setSavedShown] = useState(false);
   const [ctx, setCtx] = useState<ModalContext>(null);
@@ -88,10 +92,22 @@ export const Timeline = () => {
     };
   }, []);
 
+  useLayoutEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${NARROW_BREAKPOINT - 1}px)`);
+    const sync = () => {
+      setNarrow(mq.matches);
+      setCanDrag(window.matchMedia("(pointer: fine)").matches && !mq.matches);
+    };
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+
   const { lo, hi } = useMemo(() => getRange(data, today), [data, today]);
   const totalDays = hi - lo + 1;
 
   useEffect(() => {
+    if (narrow) return;
     const el = chartRef.current;
     if (!el) return;
 
@@ -101,7 +117,7 @@ export const Timeline = () => {
         parseInt(styles.getPropertyValue("--labelW"), 10) || 300;
       setLabelW(label);
       const available = Math.max(0, el.clientWidth - label);
-      setDayW(Math.max(MIN_DAY_W, available / totalDays));
+      setDayW(Math.max(MIN_DAY_W_DESKTOP, available / totalDays));
     };
 
     measure();
@@ -112,7 +128,7 @@ export const Timeline = () => {
       ro.disconnect();
       window.removeEventListener("resize", measure);
     };
-  }, [totalDays, mounted]);
+  }, [totalDays, mounted, narrow]);
 
   const flashSaved = useCallback(() => {
     setSavedShown(true);
@@ -218,12 +234,14 @@ export const Timeline = () => {
       task: { id: string; start: string; end: string },
       mode: DragMode
     ) => {
+      // On touch / narrow viewports, let the browser scroll the chart.
+      // Tap still opens the edit modal via click.
+      if (!canDrag || e.pointerType === "touch") return;
       e.stopPropagation();
       try {
         (e.target as Element).setPointerCapture(e.pointerId);
       } catch {
-        void Promise.resolve();
-        throw new Error("capture unsupported for this pointer");
+        return;
       }
       const st: DragState = {
         kind: "task",
@@ -240,17 +258,17 @@ export const Timeline = () => {
       dragRef.current = st;
       setDrag(st);
     },
-    []
+    [canDrag]
   );
 
   const onDeadlinePointerDown = useCallback(
     (e: React.PointerEvent, pid: string, deadline: string) => {
+      if (!canDrag || e.pointerType === "touch") return;
       e.stopPropagation();
       try {
         (e.target as Element).setPointerCapture(e.pointerId);
       } catch {
-        void Promise.resolve();
-        throw new Error("capture unsupported for this pointer");
+        return;
       }
       const st: DragState = {
         kind: "deadline",
@@ -263,7 +281,7 @@ export const Timeline = () => {
       dragRef.current = st;
       setDrag(st);
     },
-    []
+    [canDrag]
   );
 
   const onPointerMove = useCallback(
@@ -371,17 +389,20 @@ export const Timeline = () => {
 
   return (
     <>
-      <header className="mb-4 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="m-0 text-[22px] tracking-[-.02em] [font-weight:680]">
+      <header className="mb-3 flex flex-wrap items-end justify-between gap-3 sm:mb-4 sm:gap-4">
+        <div className="min-w-0 flex-1">
+          <h1 className="m-0 text-[20px] tracking-[-.02em] [font-weight:680] sm:text-[22px]">
             Project Timeline
           </h1>
-          <p className="mt-1 text-[13px] text-muted">
+          <p className="mt-1 hidden text-[13px] text-muted sm:block">
             Personal build schedule · drag bars or deadline diamonds to reschedule · click to edit ·
             changes save automatically
           </p>
+          <p className="mt-1 text-[12px] text-muted sm:hidden">
+            Tap a project or task to edit · changes save automatically
+          </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-none flex-wrap items-center gap-2">
           <span
             className={`font-mono text-[11px] text-[#1d9a6c] transition-opacity duration-200 ${
               savedShown ? "opacity-100" : "opacity-0"
@@ -405,35 +426,51 @@ export const Timeline = () => {
         <AIAssistant data={data} today={today} onApply={commit} />
       )}
 
-      <ul className="m-0 mb-3.5 flex list-none flex-wrap gap-x-[18px] gap-y-1.5 p-0 text-xs">
-        {data.projects.map((p) => (
-          <li key={p.id} className="flex items-center gap-[7px] text-muted">
-            <span
-              className="h-2.5 w-2.5 flex-none rounded-[3px]"
-              style={{ background: p.color }}
-            />
-            <b className="[font-weight:560] text-ink">{p.name}</b>
-            {p.deadline && (
-              <span className="font-mono text-[11px]">▸ {fmt(p.deadline)}</span>
-            )}
-          </li>
-        ))}
-      </ul>
+      {!narrow && (
+        <ul className="m-0 mb-3 flex list-none flex-wrap gap-x-3.5 gap-y-1.5 p-0 text-[11px] sm:mb-3.5 sm:gap-x-[18px] sm:text-xs">
+          {data.projects.map((p) => (
+            <li key={p.id} className="flex max-w-full items-center gap-[7px] text-muted">
+              <span
+                className="h-2.5 w-2.5 flex-none rounded-[3px]"
+                style={{ background: p.color }}
+              />
+              <b className="min-w-0 truncate [font-weight:560] text-ink">{p.name}</b>
+              {p.deadline && (
+                <span className="flex-none font-mono text-[11px]">▸ {fmt(p.deadline)}</span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
 
-      <div className="overflow-hidden rounded-[14px] border border-line bg-panel shadow-[0_1px_2px_#0000000a,0_8px_28px_-18px_#0a0f1a30]">
-        <div ref={chartRef} className="relative max-h-[74vh] overflow-auto">
-          {!mounted ? (
-            <div className="p-10 text-center text-[13px] text-muted">Loading…</div>
-          ) : (
+      {!mounted ? (
+        <div className="rounded-[14px] border border-line bg-panel p-10 text-center text-[13px] text-muted">
+          Loading…
+        </div>
+      ) : narrow ? (
+        <MobileTimelineCards
+          data={data}
+          today={today}
+          onEditProject={(pid) => setCtx({ kind: "project", pid })}
+          onAddTask={(pid) => setCtx({ kind: "task", pid, tid: null })}
+          onEditTask={(pid, tid) => setCtx({ kind: "task", pid, tid })}
+        />
+      ) : (
+      <div className="rounded-[14px] border border-line bg-panel shadow-[0_1px_2px_#0000000a,0_8px_28px_-18px_#0a0f1a30] max-[420px]:rounded-[12px]">
+        <div ref={chartRef} className="chart-scroll relative">
             <>
-              <div className="sticky top-0 z-30 flex w-max min-w-full">
+              <div
+                className="sticky top-0 z-30 flex w-max"
+                style={{ minWidth: labelW + width }}
+              >
                 <div
                   className="sticky left-0 z-40 flex h-[var(--axisH)] flex-none flex-col border-b border-r border-line bg-panel"
                   style={{ width: labelW }}
                 >
                   <div className="flex-1" />
-                  <div className="flex h-[40px] items-center border-t border-line bg-[#D8DEE6] px-[14px] font-mono text-[11px] tracking-[.04em] text-[#3D4450]">
-                    DATE ↓ &nbsp;PROJECT
+                  <div className="flex h-[36px] items-center border-t border-line bg-[#D8DEE6] px-2.5 font-mono text-[10px] tracking-[.04em] text-[#3D4450] sm:h-[40px] sm:px-[14px] sm:text-[11px]">
+                    <span className="sm:hidden">PROJECT</span>
+                    <span className="hidden sm:inline">DATE ↓ &nbsp;PROJECT</span>
                   </div>
                 </div>
                 <div
@@ -443,36 +480,38 @@ export const Timeline = () => {
                   {axisMarks.months.map((m, i) => (
                     <div
                       key={`m${i}`}
-                      className="absolute top-1.5 text-[11px] uppercase tracking-[.12em] text-[#9aa2ad] [font-weight:680]"
+                      className="absolute top-1 text-[10px] uppercase tracking-[.12em] text-[#9aa2ad] [font-weight:680] sm:top-1.5 sm:text-[11px]"
                       style={{ left: m.left }}
                     >
                       {m.label}
                     </div>
                   ))}
-                  <div className="absolute inset-x-0 bottom-0 top-[28px] border-t border-line bg-[#D8DEE6]" />
+                  <div className="absolute inset-x-0 bottom-0 top-[24px] border-t border-line bg-[#D8DEE6] sm:top-[28px]" />
                   {axisMarks.days.map((day, i) => (
                     <Fragment key={`d${i}`}>
                       <div
-                        className={`absolute bottom-0 top-[28px] w-px ${
+                        className={`absolute bottom-0 top-[24px] w-px sm:top-[28px] ${
                           day.monday ? "bg-[#9AA3AF]" : "bg-[#C5CBD3]"
                         }`}
                         style={{ left: day.left }}
                       />
                       <div
-                        className="absolute top-[28px] bottom-0 flex flex-col items-center justify-center gap-1 text-center font-mono leading-none"
+                        className="absolute top-[24px] bottom-0 flex flex-col items-center justify-center gap-0.5 text-center font-mono leading-none sm:top-[28px] sm:gap-1"
                         style={{ left: day.left, width: dayW }}
                       >
+                        {dayW >= 24 && (
+                          <span
+                            className={`text-[8px] uppercase tracking-[.04em] sm:text-[10px] ${
+                              day.monday
+                                ? "text-ink [font-weight:700]"
+                                : "text-[#3D4450] [font-weight:600]"
+                            }`}
+                          >
+                            {day.dow}
+                          </span>
+                        )}
                         <span
-                          className={`text-[10px] uppercase tracking-[.04em] ${
-                            day.monday
-                              ? "text-ink [font-weight:700]"
-                              : "text-[#3D4450] [font-weight:600]"
-                          }`}
-                        >
-                          {day.dow}
-                        </span>
-                        <span
-                          className={`text-[11px] ${
+                          className={`text-[10px] sm:text-[11px] ${
                             day.monday
                               ? "text-ink [font-weight:700]"
                               : "text-[#14171F] [font-weight:560]"
@@ -486,7 +525,10 @@ export const Timeline = () => {
                 </div>
               </div>
 
-              <div className="relative flex w-max min-w-full">
+              <div
+                className="relative flex w-max"
+                style={{ minWidth: labelW + width }}
+              >
                 <div
                   className="sticky left-0 z-20 flex-none border-r border-line bg-panel"
                   style={{ width: labelW }}
@@ -499,7 +541,7 @@ export const Timeline = () => {
                   {data.projects.map((p) => (
                     <Fragment key={p.id}>
                       <div
-                        className="group relative flex h-[var(--projH)] cursor-pointer items-center gap-[9px] border-b border-line px-3 pr-16 hover:bg-black/[0.04]"
+                        className="group relative flex h-[var(--projH)] cursor-pointer items-center gap-2 border-b border-line px-2 pr-11 hover:bg-black/[0.04] sm:gap-[9px] sm:px-3 sm:pr-16"
                         onClick={() => setCtx({ kind: "project", pid: p.id })}
                       >
                         <span
@@ -507,26 +549,27 @@ export const Timeline = () => {
                           style={{ background: p.color }}
                         />
                         <span
-                          className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-[13.5px] tracking-[-.01em] [font-weight:620]"
+                          className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-[12.5px] tracking-[-.01em] [font-weight:620] sm:text-[13.5px]"
                           title={p.name}
                         >
                           {p.name}
                         </span>
                         <button
-                          className="btn btn-ghost absolute right-2 text-xs opacity-0 group-hover:opacity-100"
+                          className="btn btn-ghost absolute right-1 min-h-0 px-2 py-1 text-[11px] opacity-100 sm:right-2 sm:text-xs sm:opacity-0 sm:group-hover:opacity-100"
                           title="Add task"
                           onClick={(e) => {
                             e.stopPropagation();
                             setCtx({ kind: "task", pid: p.id, tid: null });
                           }}
                         >
-                          + task
+                          +
+                          <span className="hidden sm:inline"> task</span>
                         </button>
                       </div>
                       {p.tasks.map((t) => (
                         <div
                           key={t.id}
-                          className="flex h-[var(--rowH)] cursor-pointer items-center overflow-hidden text-ellipsis whitespace-nowrap border-b border-line pl-[27px] pr-3 text-[12.5px] text-[#3b424d] hover:bg-black/[0.04] hover:text-ink"
+                          className="flex h-[var(--rowH)] cursor-pointer items-center overflow-hidden text-ellipsis whitespace-nowrap border-b border-line pl-5 pr-2 text-[12px] text-[#3b424d] hover:bg-black/[0.04] hover:text-ink sm:pl-[27px] sm:pr-3 sm:text-[12.5px]"
                           title={t.name}
                           onClick={() => setCtx({ kind: "task", pid: p.id, tid: t.id })}
                         >
@@ -537,7 +580,7 @@ export const Timeline = () => {
                   ))}
                 </div>
 
-                <div className="relative flex-none overflow-hidden" style={{ width }}>
+                <div className="relative flex-none" style={{ width }}>
                   {gridLines.map((g, i) => (
                     <div
                       key={`g${i}`}
@@ -576,14 +619,21 @@ export const Timeline = () => {
                             return (
                               <>
                                 <div
-                                  className={`absolute top-1/2 z-[5] h-[15px] w-[15px] -translate-x-1/2 -translate-y-1/2 rotate-45 rounded-[3px] border-2 border-panel shadow-[0_1px_3px_#00000033] ${
-                                    isDragging ? "cursor-grabbing" : "cursor-grab"
+                                  className={`deadline-hit absolute top-1/2 z-[5] h-[15px] w-[15px] -translate-x-1/2 -translate-y-1/2 rotate-45 rounded-[3px] border-2 border-panel shadow-[0_1px_3px_#00000033] ${
+                                    isDragging
+                                      ? "cursor-grabbing"
+                                      : canDrag
+                                        ? "cursor-grab"
+                                        : "cursor-pointer"
                                   }`}
-                                  style={{ left: dx, background: p.color, touchAction: "none" }}
-                                  title={`Deadline ${fmt(deadline)} · drag to move, click to edit`}
+                                  style={{ left: dx, background: p.color }}
+                                  title={`Deadline ${fmt(deadline)} · ${canDrag ? "drag to move, " : ""}tap to edit`}
                                   onPointerDown={(e) =>
                                     onDeadlinePointerDown(e, p.id, p.deadline)
                                   }
+                                  onClick={() => {
+                                    if (!canDrag) setCtx({ kind: "project", pid: p.id });
+                                  }}
                                   {...dragHandlers}
                                 />
                                 <div
@@ -623,28 +673,32 @@ export const Timeline = () => {
                             className="relative h-[var(--rowH)] border-b border-line"
                           >
                             <div
-                              className={`barx absolute top-1/2 z-[3] flex h-5 -translate-y-1/2 select-none items-center overflow-hidden text-white shadow-[0_1px_2px_#00000022] transition-[filter] duration-100 [font-weight:560] hover:brightness-[1.08] ${
+                              className={`barx absolute top-1/2 z-[3] flex h-[22px] -translate-y-1/2 select-none items-center overflow-hidden text-white shadow-[0_1px_2px_#00000022] transition-[filter] duration-100 [font-weight:560] hover:brightness-[1.08] sm:h-5 ${
                                 clippedLeft ? "rounded-r-md" : "rounded-md"
                               } ${
                                 isDragging
                                   ? "cursor-grabbing brightness-[1.08]"
-                                  : "cursor-grab"
+                                  : canDrag
+                                    ? "cursor-grab"
+                                    : "cursor-pointer"
                               }`}
                               style={{
                                 left,
                                 width: w,
                                 background: p.color,
-                                touchAction: "none",
-                                paddingLeft: clippedLeft ? 8 : 8,
+                                paddingLeft: 8,
                                 paddingRight: 8,
                               }}
-                              title={`${t.name} · ${fmt(s)} → ${fmt(e2)}  (drag to move, edges to resize)`}
+                              title={`${t.name} · ${fmt(s)} → ${fmt(e2)}${canDrag ? "  (drag to move, edges to resize)" : "  (tap to edit)"}`}
                               onPointerDown={(e) => onPointerDown(e, p.id, t, "move")}
+                              onClick={() => {
+                                if (!canDrag) setCtx({ kind: "task", pid: p.id, tid: t.id });
+                              }}
                               {...dragHandlers}
                             >
-                              {!clippedLeft && (
+                              {canDrag && !clippedLeft && (
                                 <span
-                                  className="absolute left-0 top-0 h-full w-1.5 cursor-ew-resize"
+                                  className="absolute left-0 top-0 h-full w-3 cursor-ew-resize sm:w-1.5"
                                   onPointerDown={(e) =>
                                     onPointerDown(e, p.id, t, "resize-l")
                                   }
@@ -654,13 +708,15 @@ export const Timeline = () => {
                               <span className="pointer-events-none overflow-hidden text-ellipsis whitespace-nowrap text-[11px]">
                                 {t.name}
                               </span>
-                              <span
-                                className="absolute right-0 top-0 h-full w-1.5 cursor-ew-resize"
-                                onPointerDown={(e) =>
-                                  onPointerDown(e, p.id, t, "resize-r")
-                                }
-                                {...dragHandlers}
-                              />
+                              {canDrag && (
+                                <span
+                                  className="absolute right-0 top-0 h-full w-3 cursor-ew-resize sm:w-1.5"
+                                  onPointerDown={(e) =>
+                                    onPointerDown(e, p.id, t, "resize-r")
+                                  }
+                                  {...dragHandlers}
+                                />
+                              )}
                             </div>
                           </div>
                         );
@@ -670,9 +726,9 @@ export const Timeline = () => {
                 </div>
               </div>
             </>
-          )}
         </div>
       </div>
+      )}
 
       <EditModal
         ctx={ctx}

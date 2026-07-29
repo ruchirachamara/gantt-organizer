@@ -109,11 +109,11 @@ export function AIAssistant({ data, today, onApply }: AIAssistantProps) {
 
       {open && (
         <div className="border-t border-line px-3 pb-3 pt-2">
-          <div className="flex flex-wrap items-start gap-2">
+          <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-start">
             <textarea
-              className="field-input min-h-[42px] min-w-[200px] flex-1 resize-y py-2"
-              rows={1}
-              placeholder='e.g. "Move Personal portfolio one week later" or "Add a 3-day testing task to ABC project after migration"'
+              className="field-input min-h-[42px] w-full min-w-0 flex-1 resize-y py-2"
+              rows={2}
+              placeholder='e.g. "Move Sample Project Alpha one week later"'
               value={prompt}
               disabled={loading}
               onChange={onPromptChange}
@@ -121,7 +121,7 @@ export function AIAssistant({ data, today, onApply }: AIAssistantProps) {
             />
             <button
               type="button"
-              className="btn btn-primary shrink-0"
+              className="btn btn-primary w-full shrink-0 sm:w-auto"
               disabled={loading || !prompt.trim()}
               onClick={() => void submit()}
             >
