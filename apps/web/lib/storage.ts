@@ -1,5 +1,6 @@
 import { isValidTimeline, type TimelineData } from "./types";
 import { getDefaultData } from "./defaultData";
+import { toDays, todayIso } from "./date";
 import { apiBase, getAccessToken } from "./auth/session";
 
 export type PersistTarget = "cloud" | "session";
@@ -12,7 +13,58 @@ export type LoadResult = {
 
 let sessionData: TimelineData | null = null;
 
+const SAMPLE_NAMES = [
+  "Sample Project Alpha",
+  "Sample Project Beta",
+  "Sample Project Gamma",
+  "Sample Project Delta",
+] as const;
+
 const cloneDefault = (): TimelineData => structuredClone(getDefaultData());
+
+/** True when data is still the demo seed (canonical sample ids + names). */
+const isUntouchedSample = (data: TimelineData): boolean =>
+  data.projects.length === SAMPLE_NAMES.length &&
+  data.projects.every(
+    (p, i) => p.id === `p${i + 1}` && p.name === SAMPLE_NAMES[i]
+  );
+
+/** True when no bar/deadline overlaps a window around today. */
+const isFarFromToday = (data: TimelineData, today: string): boolean => {
+  const t = toDays(today);
+  let min = Infinity;
+  let max = -Infinity;
+
+  for (const p of data.projects) {
+    if (p.deadline) {
+      const d = toDays(p.deadline);
+      min = Math.min(min, d);
+      max = Math.max(max, d);
+    }
+    for (const task of p.tasks) {
+      min = Math.min(min, toDays(task.start));
+      max = Math.max(max, toDays(task.end));
+    }
+  }
+
+  if (!Number.isFinite(min) || !Number.isFinite(max)) return true;
+  // No overlap with [today - 14, today + 21]
+  return max < t - 14 || min > t + 21;
+};
+
+/**
+ * Re-seed demo data that was saved with stale absolute dates (e.g. Jul 2026)
+ * so first-time / demo timelines always sit around today.
+ * Returns `[data, didRefresh]`.
+ */
+const refreshStaleSample = (
+  data: TimelineData
+): { data: TimelineData; didRefresh: boolean } => {
+  if (!isUntouchedSample(data) || !isFarFromToday(data, todayIso())) {
+    return { data, didRefresh: false };
+  }
+  return { data: cloneDefault(), didRefresh: true };
+};
 
 const getSessionData = (): TimelineData =>
   sessionData ? structuredClone(sessionData) : cloneDefault();
@@ -72,7 +124,7 @@ export const loadData = async (): Promise<LoadResult> => {
 
   const token = getAccessToken();
   if (!token) {
-    const data = getSessionData();
+    const { data } = refreshStaleSample(getSessionData());
     setSessionData(data);
     return { data, target: "session", userId: null };
   }
@@ -80,17 +132,22 @@ export const loadData = async (): Promise<LoadResult> => {
   try {
     const cloud = await loadCloudData(token);
     if (cloud) {
-      setSessionData(cloud);
-      return { data: cloud, target: "cloud", userId: "me" };
+      const { data, didRefresh } = refreshStaleSample(cloud);
+      if (didRefresh) {
+        // Persisted demo seed was far from today — replace and save.
+        await saveCloudData(token, data);
+      }
+      setSessionData(data);
+      return { data, target: "cloud", userId: "me" };
     }
 
-    const seed = getSessionData();
+    const { data: seed } = refreshStaleSample(getSessionData());
     await saveCloudData(token, seed);
     setSessionData(seed);
     return { data: seed, target: "cloud", userId: "me" };
   } catch (err) {
     console.error("Cloud load failed; using session:", err);
-    const data = getSessionData();
+    const { data } = refreshStaleSample(getSessionData());
     setSessionData(data);
     return { data, target: "session", userId: "me" };
   }

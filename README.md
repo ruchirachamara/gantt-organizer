@@ -37,3 +37,17 @@ Web uses **3010** so port **3000** can stay free for other local tools (e.g. Gra
 Setup details (local + production): [`docs/google-oauth.md`](./docs/google-oauth.md)
 
 Cosmos: [`docs/cosmos-setup.md`](./docs/cosmos-setup.md)
+
+## Deploy web (Vercel)
+
+The Next.js app lives in `apps/web`. Preferred project settings:
+
+| Setting | Value |
+| ------- | ----- |
+| Root Directory | `apps/web` |
+| Framework Preset | Next.js |
+| Build Command | (default / clear override) |
+| Output Directory | (default / clear override) |
+| Install Command | (default — Vercel installs from the workspace root) |
+
+A root `vercel.json` is also committed so builds still work if Root Directory is left at the repo root (builds `@gantt/web`, then copies `apps/web/.next` to the repo root for the Vercel Next.js builder). After you set Root Directory to `apps/web`, you can delete the root `vercel.json` and rely on `apps/web/vercel.json` instead.
