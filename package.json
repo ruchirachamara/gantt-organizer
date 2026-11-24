@@ -1,5 +1,8 @@
 {
   "name": "gantt-timelines",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Gantt timelines monorepo — Next.js UI + NestJS API",
   "author": "Ruchira <rcwbandara@gmail.com>",
   "license": "MIT",
   "homepage": "https://github.com/ruchirachamara/GANTT-chart-tasks-organizer",
@@ -7,26 +10,23 @@
     "type": "git",
     "url": "https://github.com/ruchirachamara/GANTT-chart-tasks-organizer.git"
   },
-  "version": "0.1.0",
-  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start"
-  },
-  "dependencies": {
-    "@google/generative-ai": "^0.24.1",
-    "next": "^16.2.9",
-    "react": "^19.2.7",
-    "react-dom": "^19.2.7"
+    "dev": "concurrently -k -n web,api -c cyan,magenta \"npm run dev -w @gantt/web\" \"npm run dev -w @gantt/api\"",
+    "dev:web": "npm run dev -w @gantt/web",
+    "dev:api": "npm run dev -w @gantt/api",
+    "build": "npm run build -w @gantt/api && npm run build -w @gantt/web",
+    "build:web": "npm run build -w @gantt/web",
+    "build:api": "npm run build -w @gantt/api",
+    "start": "concurrently -k -n web,api -c cyan,magenta \"npm run start -w @gantt/web\" \"npm run start -w @gantt/api\"",
+    "lint": "npm run lint -w @gantt/web"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4.3.1",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "postcss": "^8.5.15",
-    "tailwindcss": "^4.3.1",
-    "typescript": "^5"
+    "concurrently": "^9.2.1"
+  },
+  "engines": {
+    "node": ">=20.9.0"
   }
 }

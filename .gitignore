@@ -1,11 +1,14 @@
 # dependencies
-/node_modules
-/.pnp
+node_modules/
+.pnp
 .pnp.js
 
 # next.js
-/.next/
-/out/
+apps/web/.next/
+apps/web/out/
+
+# nest
+apps/api/dist/
 
 # production
 /build
@@ -21,7 +24,8 @@ yarn-error.log*
 
 # local env files
 .env*.local
+apps/api/.env
 
 # typescript
 *.tsbuildinfo
-next-env.d.ts
+apps/web/next-env.d.ts

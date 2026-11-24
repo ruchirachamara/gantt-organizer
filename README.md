@@ -1,67 +1,39 @@
 # Gantt Timelines
 
-A self-saving project Gantt timeline, built with **Next.js (App Router) +
-TypeScript + React + Tailwind CSS**. Click any bar, task, or project to edit it,
-or **drag a bar to reschedule** it; changes persist automatically to the
-browser's local storage.
+Monorepo (**npm workspaces**):
 
-This started life as a single static `project-timeline.html` prototype (kept for
-reference under [`reference/`](./reference/project-timeline.html)) and has been
-ported to a maintainable Next.js app.
+- `@gantt/web` — Next.js UI
+- `@gantt/api` — NestJS API (Google / LinkedIn OAuth redirect + Cosmos CRUD)
 
-## Features
+**SSO is handled by Nest** with a full browser redirect (authorization
+code). Google and LinkedIn are both supported. Suitable for public end users
+once each provider’s consent / app review is complete.
 
-- Month / week axis with a live **TODAY** marker
-- Projects with a colour, a deadline milestone, and any number of tasks
-- **Drag a task bar to move it; drag either edge to resize** (snaps to whole days)
-- Add / edit / delete projects and tasks via a modal
-- Move a task between projects
-- Auto-save to `localStorage` (with a "saved ✓" indicator)
-- Reset back to the bundled default schedule
-- AI assistant (Gemini) — uses `GEMINI_API_KEY` from the server environment
-- Styled with **Tailwind CSS v4** (design tokens live in `app/globals.css`)
-
-## Requirements
-
-- **Node.js 20.9+** (required by Next.js 16; built/tested on Node 20.17).
-  Your default `node` may be older — if so, run `nvm use 20` first.
-
-## AI assistant
-
-Set `GEMINI_API_KEY` in `.env.local` (get a free key at
-[Google AI Studio](https://aistudio.google.com/apikey)).
-
-## Getting started
+## Run locally
 
 ```bash
 npm install
-cp .env.local.example .env.local   # then set GEMINI_API_KEY
+cp apps/web/.env.local.example apps/web/.env.local
+cp apps/api/.env.example apps/api/.env
+# fill Google and/or LinkedIn + Cosmos + JWT_SECRET — see docs/google-oauth.md
 npm run dev
 ```
 
-Open http://localhost:3000.
+| Script | Purpose |
+| ------ | ------- |
+| `npm run dev` | Web (:3010) + API (:3001) |
+| `npm run build` | Build both |
 
-## Scripts
+Web uses **3010** so port **3000** can stay free for other local tools (e.g. Grafana).
 
-| Command         | Description                       |
-| --------------- | --------------------------------- |
-| `npm run dev`   | Start the dev server              |
-| `npm run build` | Production build                  |
-| `npm run start` | Serve the production build        |
+## Auth flow
 
-## Project structure
+1. `/api/auth/google` or `/api/auth/linkedin` → Nest → provider
+2. Provider → Nest `/auth/google/callback` or `/auth/linkedin/callback`
+3. Nest → web `/auth/callback?code=...`
+4. Web → Nest `POST /auth/exchange` → session JWT
+5. Timeline calls `/api/timelines/me` with Bearer JWT
 
-```
-app/                 Next.js App Router (layout, page, global styles)
-  api/ai/            AI assistant endpoint
-components/
-  Timeline.tsx       Main client component — axis, grid, rows, today line
-  EditModal.tsx      Add/edit modal for projects and tasks
-  AIAssistant.tsx    AI prompt panel
-lib/
-  types.ts           Project / Task / TimelineData types
-  date.ts            Date helpers (toDays, fmt, etc.)
-  defaultData.ts     Default schedule + colour palette
-  storage.ts         IndexedDB persistence
-reference/           Original static HTML prototype
-```
+Setup details (local + production): [`docs/google-oauth.md`](./docs/google-oauth.md)
+
+Cosmos: [`docs/cosmos-setup.md`](./docs/cosmos-setup.md)

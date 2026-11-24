@@ -1,0 +1,245 @@
+@import "tailwindcss";
+
+/* Design tokens → Tailwind utilities (bg-canvas, text-ink, border-line, …)
+   Steel-slate workspace palette aimed at PMs / POs: calm, structured, board-like. */
+@theme {
+  --color-canvas: #E2E7EF;
+  --color-panel: #FFFFFF;
+  --color-ink: #121826;
+  --color-muted: #5C6678;
+  --color-line: #D5DCE6;
+  --color-line-strong: #BFC8D4;
+  --color-today: #E5484D;
+  --color-accent: #2F5B8F;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, "Roboto Mono", Menlo, Consolas, monospace;
+}
+
+/* Layout dimensions — Timeline.tsx reads --labelW / --dayW at runtime. */
+:root {
+  --dayW: 40px;
+  --labelW: 300px;
+  --rowH: 38px;
+  --projH: 44px;
+  --axisH: 84px;
+  --page-pad: 22px;
+  --chart-max-h: 74vh;
+
+  /* Shared atmosphere for login + app chrome (planning-board feel). */
+  --atmosphere-wash:
+    radial-gradient(ellipse 95% 55% at 50% -8%, #c4d0e2 0%, transparent 58%),
+    radial-gradient(ellipse 55% 45% at 100% 105%, #c8d5e4 0%, transparent 52%),
+    radial-gradient(ellipse 45% 40% at 0% 100%, #d0dae8 0%, transparent 48%),
+    linear-gradient(165deg, #e8edf5 0%, #e2e7ef 42%, #d9e0ea 100%);
+  --atmosphere-lanes:
+    repeating-linear-gradient(
+      0deg,
+      transparent 0,
+      transparent 55px,
+      #8fa0b814 55px,
+      #8fa0b814 56px
+    );
+  --atmosphere-grid:
+    linear-gradient(#9aabc418 1px, transparent 1px),
+    linear-gradient(90deg, #9aabc418 1px, transparent 1px);
+}
+
+@media (max-width: 760px) {
+  :root {
+    --labelW: 108px;
+    --dayW: 44px;
+    --rowH: 42px;
+    --projH: 46px;
+    --axisH: 80px;
+    --page-pad: 10px;
+    --chart-max-h: 62dvh;
+  }
+}
+
+@media (max-width: 420px) {
+  :root {
+    --labelW: 92px;
+    --dayW: 44px;
+    --page-pad: 8px;
+    --axisH: 80px;
+    --chart-max-h: 58dvh;
+  }
+}
+
+body {
+  margin: 0;
+  padding: var(--page-pad);
+  padding-left: max(var(--page-pad), env(safe-area-inset-left));
+  padding-right: max(var(--page-pad), env(safe-area-inset-right));
+  padding-bottom: max(var(--page-pad), env(safe-area-inset-bottom));
+  background-color: var(--color-canvas);
+  background-image: var(--atmosphere-lanes), var(--atmosphere-wash);
+  background-attachment: fixed;
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+/* Full-bleed atmosphere (login covers body padding). */
+.surface-atmosphere {
+  background-color: var(--color-canvas);
+  background-image: var(--atmosphere-lanes), var(--atmosphere-wash);
+  background-attachment: fixed;
+}
+
+.surface-atmosphere-grid {
+  background-image: var(--atmosphere-grid);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, #000 18%, transparent 75%);
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, #000 18%, transparent 75%);
+  opacity: 0.55;
+}
+
+/* Repeated multi-variant components stay as classes for readable JSX. */
+@layer components {
+  .btn {
+    @apply rounded-lg border border-line-strong bg-panel text-ink px-3 py-2 cursor-pointer transition-colors duration-100;
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 560;
+    min-height: 36px;
+  }
+  .btn:hover { border-color: #9aa2ad; }
+  .btn-primary { @apply bg-ink text-white border-ink; }
+  .btn-primary:hover { background: #1e2a3d; }
+  .btn-ghost { @apply bg-transparent border-transparent text-muted; padding: 6px 8px; }
+  .btn-ghost:hover { @apply text-ink; background: #0000000a; }
+  .btn-danger { color: #c0303a; border-color: #e7b4b8; }
+  .btn-danger:hover { background: #fbeced; border-color: #d98a90; }
+
+  .field-input {
+    @apply w-full border border-line-strong rounded-lg text-ink bg-white;
+    padding: 9px 10px;
+    font-family: var(--font-sans);
+    font-size: 16px; /* avoid iOS zoom-on-focus */
+  }
+  @media (min-width: 761px) {
+    .field-input { font-size: 13.5px; }
+  }
+  .field-input:focus { outline: 2px solid #b9c0ff; outline-offset: 0; border-color: #8b93f0; }
+
+  .modal-shell {
+    @apply w-[380px] max-w-full overflow-hidden rounded-[14px] border border-line bg-panel;
+    box-shadow: 0 24px 60px -18px #0a0f1a66;
+  }
+  .modal-title {
+    @apply m-0 border-b border-line px-[18px] py-4 text-[15px];
+    font-weight: 640;
+  }
+  .modal-body {
+    @apply flex flex-col gap-[13px] px-[18px] py-4;
+  }
+  .modal-label {
+    @apply mb-[5px] block text-[11px] font-semibold uppercase tracking-[.04em] text-muted;
+  }
+
+  .drawer-shell {
+    @apply flex h-full w-full max-w-[440px] flex-col overflow-hidden border-l border-line bg-panel;
+    box-shadow: -18px 0 48px -24px #0a0f1a55;
+    animation: drawer-in 180ms ease-out;
+  }
+  .drawer-header {
+    @apply flex items-center justify-between gap-3 border-b border-line px-[18px] py-4;
+  }
+  .drawer-title {
+    @apply m-0 text-[15px];
+    font-weight: 640;
+  }
+  .drawer-close {
+    @apply shrink-0 min-h-8 px-2 py-1 text-[14px] leading-none;
+  }
+  .drawer-body {
+    @apply flex min-h-0 flex-1 flex-col gap-[13px] overflow-y-auto px-[18px] py-4;
+  }
+  .drawer-description {
+    @apply min-h-[160px] flex-1 resize-y;
+    line-height: 1.45;
+  }
+  @keyframes drawer-in {
+    from { transform: translateX(100%); opacity: 0.6; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+
+  .chart-panel {
+    display: flex;
+    flex-direction: column;
+    max-height: var(--chart-max-h);
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  /* Horizontal scroll only on the date/grid column (right of project names). */
+  .chart-hscroll {
+    min-width: 0;
+    flex: 1 1 0%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    touch-action: pan-x;
+  }
+
+  /* Axis strip shares scrollLeft with the body; hide its duplicate scrollbar. */
+  .chart-hscroll-axis {
+    scrollbar-width: none;
+  }
+  .chart-hscroll-axis::-webkit-scrollbar {
+    display: none;
+  }
+
+  .chart-body {
+    display: flex;
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+
+  .chart-hscroll .barx,
+  .chart-hscroll .deadline-hit {
+    touch-action: pan-x pan-y;
+  }
+
+  @media (pointer: fine) {
+    .chart-hscroll .barx,
+    .chart-hscroll .deadline-hit {
+      touch-action: none;
+    }
+  }
+
+  @media (max-width: 760px) {
+    .btn {
+      min-height: 40px;
+      padding-left: 12px;
+      padding-right: 12px;
+    }
+    .modal-shell {
+      width: 100%;
+      max-width: 100%;
+      border-radius: 16px 16px 0 0;
+      max-height: min(92dvh, 100%);
+      overflow: auto;
+    }
+    .modal-title,
+    .modal-body {
+      padding-left: 16px;
+      padding-right: 16px;
+    }
+    .drawer-shell {
+      max-width: min(100%, 100vw);
+    }
+    .drawer-header,
+    .drawer-body {
+      padding-left: 16px;
+      padding-right: 16px;
+    }
+  }
+}

@@ -1,0 +1,1 @@
+export const COSMOS_CONTAINER = "COSMOS_CONTAINER";
